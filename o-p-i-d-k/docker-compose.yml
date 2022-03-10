@@ -1,0 +1,75 @@
+version: '3.8'
+services:
+  database-service:
+    container_name: microservice-database
+    image: mysql/mysql-server:5.7
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_ROOT_HOST: '%'
+    ports:
+      - 3307:3306
+    volumes:
+      - ./database:/docker-entrypoint-initdb.d
+
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin
+    container_name: pma
+    links:
+      - database-service
+    environment:
+      PMA_HOST: microservice-database
+      PMA_PORT: 3306
+      PMA_ARBITRARY: 1
+    restart: always
+    ports:
+      - 3333:80
+  order-service:
+    depends_on:
+      - database-service
+    environment:
+      - SPRING_RABBITMQ_HOST=rabbitmq
+    build: ./orderservice
+    volumes:
+      - ./orderservice:/orderservice
+      - ~/m2:/root/m2
+    working_dir: /orderservice
+    ports:
+      - 8081:8080
+    command: mvn clean spring-boot:run
+  payment-service:
+    depends_on:
+      - database-service
+    environment:
+      - SPRING_RABBITMQ_HOST=rabbitmq
+    build: ./paymentservice
+    volumes:
+      - ./paymentservice:/paymentservice
+      - ~/m2:/root/m2
+    working_dir: /paymentservice
+    ports:
+      - 8082:8080
+    command: mvn clean spring-boot:run
+  inventory-service:
+    depends_on:
+      - database-service
+    environment:
+      - SPRING_RABBITMQ_HOST=rabbitmq
+    build: ./inventoryservice
+    volumes:
+      - ./inventoryservice:/inventoryservice
+      - ~/m2:/root/m2
+    working_dir: /inventoryservice
+    ports:
+      - 8083:8080
+    command: mvn clean spring-boot:run
+  rabbitmq3:
+    container_name: "rabbitmq"
+    image: rabbitmq:3.8-management-alpine
+    environment:
+      - RABBITMQ_DEFAULT_USER=guest
+      - RABBITMQ_DEFAULT_PASS=guest
+    ports:
+      # AMQP protocol port
+      - 5672:5672
+      # HTTP management UI
+      - 15672:15672
